@@ -1,4 +1,9 @@
+
+1. Syntax for creating budgets
 aws budgets create-budget \
     --account-id $AWS_ACCOUNT_ID \
     --budget file://aws/json/budget.json \
     --notifications-with-subscribers file://aws/json/notifications-with-subscribers.json
+
+2. Syntax for creating alarm
+aws cloudwatch put-metric-alarm --cli-input-json file://aws/json/alarm-config.json
