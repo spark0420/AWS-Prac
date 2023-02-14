@@ -2,7 +2,12 @@
 
 ## Recreate Conceptual Diagram in Lucid Charts or on a Napkin
 - A conceptual model is a representation of a system. It consists of concepts used to help people know, understand, or simulate a subject the model represents.
+
 <img src = "images/ConceptualDiagram.png" >
+
+
+Link to Lucid Chart:
+https://lucid.app/lucidchart/f1f972d7-5bd5-48fc-8875-28015f79d9ac/edit?viewport_loc=32%2C-23%2C2048%2C1032%2CxN_w2ZR99t24&invitationId=inv_567d65a3-2659-4dca-a608-a1965050eefd
 
 ## Recreate Logical Architectual Diagram in Lucid Charts
 - Logical diagrams describe how a solution works in terms of function and logical information. It illustrates connectivity between applications and therefore the flow or sequence between components.
