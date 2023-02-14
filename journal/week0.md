@@ -11,12 +11,12 @@
 ## Create an Admin User
 - Go to IAM in AWS console
 - Create a new user in Users tab with Adminaccess
-<img src = images/AdminUser.png>
+<img src = "images/AdminUser.png">
 
 ## Use CloudShell
 - CloudShell can be used using a terminal icon in AWS console
 - syntax "--cli-auto-prompt" activates auto-complete function
-<img src = images/CloudShell.png>
+<img src = "images/CloudShell.png">
 
 ## Generate AWS Credentials and Installed AWS CLI
 - Using syntax below, you can make your environment to install CLI automatically whenever you start your Gitpod
@@ -52,13 +52,13 @@ Check if your environment with the credentials is set using the syntax below
 aws sts get-caller-identity
 ```
 
-<img src = images/AWSenv.png>
+<img src = "images/AWSenv.png">
 
 ## Create a AWS Billing Alarm
 - You can set it using AWS console or your work environment(e.g. vscode)
 - The detailed syntax and commends are in aws/json folder
 
-<img src = "images/billingAlarm.png >
+<img src = "images/billingAlarm.png" >
 
 ## Create a AWS Budget
 
@@ -66,9 +66,9 @@ aws sts get-caller-identity
 - This can be set through AWS console or CLI commends that is is aws/json folder
 - The syntax is also included in the folder
 
-<img src = images/Budget1.png>
+<img src = "images/Budget1.png">
 
-<img src = images/Budget2.png>
+<img src = "images/Budget2.png">
 
 
 ### References
