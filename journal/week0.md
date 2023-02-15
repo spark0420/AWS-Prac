@@ -57,7 +57,7 @@ Check if your environment with the credentials is set using the syntax below
 aws sts get-caller-identity
 ```
 
-<img src = "images/AWSenv.png">
+<img src = "images/aswenv.png">
 
 ## Create a AWS Billing Alarm
 - You can set it using AWS console or your work environment(e.g. vscode)
