@@ -1,5 +1,3 @@
-# This syntax is from dockerhub
-# So, it iwll automatically go to docekr hub
 FROM python:3.10-slim-buster
 
 # change the work directory to /backend-flask folder in the container
