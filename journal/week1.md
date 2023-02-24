@@ -26,6 +26,8 @@ CMD [ "python3", "-m" , "flask", "run", "--host=0.0.0.0", "--port=4567"]
 
 ### Build Container
 
+Run the commends in the main work directory('aws-prac' in my case)
+
 ```sh
 docker build -t  backend-flask ./backend-flask
 ```
@@ -55,8 +57,18 @@ unset BACKEND_URL="*"
 
 ```sh
 docker run --rm -p 4567:4567 -it -e FRONTEND_URL='*' -e BACKEND_URL='*' backend-flask
-docker run --rm -p 4567:4567 -it  -e FRONTEND_URL -e BACKEND_URL backend-flask
 ```
+
+### Result from running the backend container
+
+Before clicking the url of port# 4567,
+I needed to unlock the port by clicking the lock icon
+Also, append to the url to /api/activities/home
+
+<img src = "images/backend data.png" >
+
+> I was able to see the json 
+
 
 ### Get Container Images 
 
@@ -99,6 +111,8 @@ CMD ["npm", "start"]
 
 ### Build Container
 
+Run the commends in the main work directory('aws-prac' in my case)
+
 ```sh
 docker build -t frontend-react-js ./frontend-react-js
 ```
@@ -113,6 +127,13 @@ docker run -p 3000:3000 -d frontend-react-js
 > To start a container in detached mode, you use -d=true or just -d option.
 
 > Without -d, a container will start in foreground mode
+
+
+### Result from running frontend container
+
+<img src = "images/frontend.png" >
+
+> I was able to see the frontend pages without backend data
 
 
 ### Create Docker compose file
@@ -152,6 +173,24 @@ networks:
 > After then, we can simply right click the file and click 'compose up' to run it
 
 > We can also do the same thing with a commends 'docker compose up'
+
+
+### Result from running 'docker compose up'
+
+<img src = "images/backend_connection_fail.png" >
+
+> Unexpectedly, I was not able to see the backend data.
+
+> While I was debugging the error, I found out putting the syntax below to the all the functions
+in 'backend-flask/app.py' solved the problem
+
+```py
+@cross_origin()
+```
+
+<img src = "images/backend_connection_fixed.png" >
+
+> After fixting the error, I could see the data
 
 
 ## Document the Notification Endpoint for the OpenAI Document
