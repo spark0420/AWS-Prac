@@ -24,6 +24,7 @@ CMD [ "python3", "-m" , "flask", "run", "--host=0.0.0.0", "--port=4567"]
 - ENV FLASK_ENV=development --> it will set the env variable in the container and will remain while the container is running
 - CMD [ "python3", "-m" , "flask", "run", "--host=0.0.0.0", "--port=4567"] --> to run the backend container
 
+
 ### Build Container
 
 Run the commends in the main work directory('aws-prac' in my case)
@@ -59,7 +60,7 @@ unset BACKEND_URL="*"
 docker run --rm -p 4567:4567 -it -e FRONTEND_URL='*' -e BACKEND_URL='*' backend-flask
 ```
 
-### Result from running the backend container
+## Result from running the backend container
 
 Before clicking the url of port# 4567,
 I needed to unlock the port by clicking the lock icon
@@ -129,7 +130,7 @@ docker run -p 3000:3000 -d frontend-react-js
 > Without -d, a container will start in foreground mode
 
 
-### Result from running frontend container
+## Result from running frontend container
 
 <img src = "images/frontend.png" >
 
@@ -175,13 +176,14 @@ networks:
 > We can also do the same thing with a commends 'docker compose up'
 
 
-### Result from running 'docker compose up'
+## Result from running 'docker compose up'
 
 <img src = "images/backend_connection_fail.png" >
 
 > Unexpectedly, I was not able to see the backend data.
 
-> While I was debugging the error, I found out putting the syntax below to the all the functions
+
+While I was debugging the error, I found out putting the syntax below to the all the functions
 in 'backend-flask/app.py' solved the problem
 
 ```py
@@ -191,6 +193,9 @@ in 'backend-flask/app.py' solved the problem
 <img src = "images/backend_connection_fixed.png" >
 
 > After fixting the error, I could see the data
+
+
+
 
 
 ## Document the Notification Endpoint for the OpenAI Document
@@ -219,6 +224,8 @@ By adding the part below, we can add an Notification endpoint for the OpenAI Doc
                   $ref: '#/components/schemas/Activity'
 
 ```
+
+
 
 ## Write a Flask Backend Endpoint for Notifications
 
@@ -280,6 +287,8 @@ def data_notifications():
  > Append '/api/activities/notifications' these at the end of the address.
 
  > If information is not seen, we might need to restart the application again.
+
+
 
 
 ## Write a React Page for Notifications
@@ -400,6 +409,15 @@ Add information for the path
   },
 ```
 
+## Result from adding Notification Endpoint to both backend and frontend
+
+<img src = "images/notificationPage.png" >
+
+> I successfully connected the backend to the front end
+
+> Also, I could change the page title and tab hover change
+
+
 
 ## Run DynamoDB Local Container & Postgres Container and ensure it works
 
@@ -492,6 +510,15 @@ Run code below to get records
 aws dynamodb scan --table-name Music --query "Items" --endpoint-url http://localhost:8000
 ```
 
+## Result from checking DynamoDB connectivity
+
+<img src = "images/dynamoDB1.png" >
+
+<img src = "images/dynamoDB2.png" >
+
+
+
+
 ### Ensure Postgres works
 
 To install the postgres client into Gitpod environment, add the code below to 'gitpod.yml' file
@@ -506,4 +533,24 @@ To install the postgres client into Gitpod environment, add the code below to 'g
 ```
 > Before restarting gitpod, I simply ran each commends above to do it manually
 
+
 To test if Postgres works, ran psql in the terminal
+However, we need to run it with tag 
+
+```sh
+psql --host localhost
+```
+
+```sh
+psql -Upostgres --host localhost
+```
+
+## Result from checking the Postgres connectivity
+
+<img src = "images/postgres1.png" >
+
+<img src = "images/postgres2.png" >
+
+
+
+
