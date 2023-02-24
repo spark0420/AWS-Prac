@@ -45,7 +45,9 @@ unset FRONTEND_URL="*"
 unset BACKEND_URL="*"
 ```
 > --rm: If you set the --rm flag, Docker also removes the anonymous volumes associated with the container when the container is removed.
+
 > -p: When set to true publish all exposed ports to the host interfaces. The default is false. If the operator uses -P (or -p) then Docker will make the exposed port accessible on the host and the ports will be available to any client that can reach the host. 
+
 > -it: The -it instructs Docker to allocate a pseudo-TTY connected to the container's stdin; creating an interactive bash shell in the container.
 
 
