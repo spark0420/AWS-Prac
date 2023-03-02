@@ -61,8 +61,8 @@ provider.add_span_processor(processor)
 
 
 # To debug, it shows in logs of backend-flask(STDOUT)
-simple_processor = SimpleSpanProcessor(ConsoleSpanExporter())
-provider.add_span_processor(simple_processor)
+# simple_processor = SimpleSpanProcessor(ConsoleSpanExporter())
+# provider.add_span_processor(simple_processor)
 
 trace.set_tracer_provider(provider)
 tracer = trace.get_tracer(__name__)
@@ -95,6 +95,7 @@ cors = CORS(
 
 #-----------------Rollbar--------------------
 rollbar_access_token = os.getenv('ROLLBAR_ACCESS_TOKEN')
+
 @app.before_first_request
 def init_rollbar():
     """init rollbar module"""
