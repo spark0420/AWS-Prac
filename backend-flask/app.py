@@ -27,6 +27,21 @@ from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProces
 from aws_xray_sdk.core import xray_recorder
 from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
 
+#-----------------CloudWatch Logs--------------------
+import watchtower
+import logging
+from time import strftime
+
+# Configuring Logger to Use CloudWatch
+# I disables CloudWatch log because of the spend concern
+# LOGGER = logging.getLogger(__name__)
+# LOGGER.setLevel(logging.DEBUG)
+# console_handler = logging.StreamHandler()
+# cw_handler = watchtower.CloudWatchLogHandler(log_group='cruddur')
+# LOGGER.addHandler(console_handler)
+# LOGGER.addHandler(cw_handler)
+# LOGGER.info("test log")
+
 #-----------------HoneyComb--------------------
 # Initialize tracing and an exporter that can send data to Honeycomb
 provider = TracerProvider()
@@ -34,8 +49,9 @@ processor = BatchSpanProcessor(OTLPSpanExporter())
 provider.add_span_processor(processor)
 
 #-----------------X-RAY--------------------
-xray_url = os.getenv("AWS_XRAY_URL")
-xray_recorder.configure(service='backend-flask', dynamic_naming=xray_url)
+# Disabled X-ray because of spent concern
+# xray_url = os.getenv("AWS_XRAY_URL")
+# xray_recorder.configure(service='backend-flask', dynamic_naming=xray_url)
 
 
 # To debug, it shows in logs of backend-flask(STDOUT)
@@ -47,7 +63,7 @@ tracer = trace.get_tracer(__name__)
 
 app = Flask(__name__)
 #-----------------X-RAY--------------------
-XRayMiddleware(app, xray_recorder)
+# XRayMiddleware(app, xray_recorder)
 
 #-----------------HoneyComb--------------------
 # Initialize automatic instrumentation with Flask
@@ -64,6 +80,12 @@ cors = CORS(
   allow_headers="content-type,if-modified-since",
   methods="OPTIONS,GET,HEAD,POST"
 )
+
+# @app.after_request
+# def after_request(response):
+#     timestamp = strftime('[%Y-%b-%d %H:%M]')
+#     LOGGER.error('%s %s %s %s %s %s', timestamp, request.remote_addr, request.method, request.scheme, request.full_path, response.status)
+#     return response
 
 @app.route("/api/message_groups", methods=['GET'])
 @cross_origin()
