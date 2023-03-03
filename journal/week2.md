@@ -18,6 +18,14 @@ ports:
 ```
 > This way, we do not need to unlock the ports every time we do docker compose-up
 
+To install npm automatically when gitpod starts, add the following in gitpod.yml file
+
+```yml
+  - name: react-js
+    command: |
+      cd frontend-react-js
+      npm i
+``` 
 
 ## Instrument Honeycomb with OTEL
 
@@ -84,9 +92,124 @@ RequestsInstrumentor().instrument()
 ```
 > Remember to put this under app = Flask(__name__)
 
+## Result from instrumenting backend
 
+After running 'Docker compose-up' and access 'http://localhost:4567/api/activities/home',
+
+<img src = "images/backendlog_honey.png" >
+> When I checked the log of backend conatiner, I can see the access log
+
+
+<img src = "images/Honeycomb.png" >
+> My application sends the backend data successfully to Honeycomb
+
+### Now, create a span!
+
+Add the following in backend-flask/home_activities.py 
+```py
+from opentelemetry import trace
+tracer = trace.get_tracer("home.activities")
+```
+> Remember to put this before the class definition
+
+Put the following inside of def run():
+```py
+with tracer.start_as_current_span("home-activities-mock-data"):
+```
+> The first line indicates the span name
+> Remember to indent the code that were there originally.
+
+### Now, add attributes to the span!
+
+The first attribute will return information about time using now() func
+Add the following in the current span in backend-flask/home_activities.py 
+
+```py
+span = trace.get_current_span()
+now = datetime.now(timezone.utc).astimezone()
+span.set_attribute("app.now", now.isoformat())
+```
+
+Also, add the second attirbute at the end of the current function(right before return statement)
+It will return the length of the returning list
+
+```py
+span.set_attribute("app.results_len", len(results))
+```
+
+## Result from creating a span ad attirbutes
+
+<img src = "images/Honeycomb_span.png" >
+> Now I can see two spans and attributes on the right side(app.now & app.results_len)
 
 
 ## Instrument AWS X-Ray
+
 ## Configure custom logger to send to CloudWatch Logs
+
+Add to the requirements.txt
+
+```
+watchtower
+```
+
+Set the environment variables in Docker-compose.yml file
+
+```yml
+AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION}"
+AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
+AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
+```
+
+Import the necessary libraries in backend-flask/app.py
+
+```py
+import watchtower
+import logging
+from time import strftime
+```
+
+Configure Logger to Use CloudWatch by adding the following in app.py
+
+```py
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.DEBUG)
+console_handler = logging.StreamHandler()
+cw_handler = watchtower.CloudWatchLogHandler(log_group='cruddur')
+LOGGER.addHandler(console_handler)
+LOGGER.addHandler(cw_handler)
+LOGGER.info("some message")
+```
+
+Create a function in app.py file.
+This will collect an error to show info 
+```py
+@app.after_request
+def after_request(response):
+    timestamp = strftime('[%Y-%b-%d %H:%M]')
+    LOGGER.error('%s %s %s %s %s %s', timestamp, request.remote_addr, request.method, request.scheme, request.full_path, response.status)
+    return response
+```
+
+Edit the def data_home(): function in app.py
+```py
+@app.route("/api/activities/home", methods=['GET'])
+@cross_origin()
+def data_home():
+  data = HomeActivities.run(Logger=LOGGER)
+  return data, 200
+```
+> It will enables HomeActivies function to recieve Logger as a parameter and pass it to the func
+
+Edit the HomeActivities function in home_activities.py
+```py
+def run(Logger):  
+    Logger.info("homeActivities")
+```
+## Result from setting Cloudwatch Logs
+
+<img src = "images/cloudwatch.png" >
+<img src = "images/cloudwatch_log.png" >
+> After setting it successfully, I disabled it for spend concerns.
+
 ## Integrate Rollbar and capture and error
