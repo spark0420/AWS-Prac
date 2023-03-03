@@ -45,7 +45,7 @@ export HONEYCOMB_SERVICE_NAME="Cruddur"
 gp env HONEYCOMB_SERVICE_NAME="Cruddur"
 ```
 
-<img src = "images/Honeycomb env.png" >
+<img src = "images/Honeycomb_env.png" >
 
 Add the environment variables to backend-flask in docker compose file
 The service name has to be identifiable since this is going to determine the service name in the spans. You do not want it to be consistent between different services.
