@@ -97,10 +97,12 @@ RequestsInstrumentor().instrument()
 After running 'Docker compose-up' and access 'http://localhost:4567/api/activities/home',
 
 <img src = "images/backendlog_honey.png" >
+
 > When I checked the log of backend conatiner, I can see the access log
 
 
 <img src = "images/Honeycomb.png" >
+
 > My application sends the backend data successfully to Honeycomb
 
 ### Now, create a span!
@@ -140,6 +142,7 @@ span.set_attribute("app.results_len", len(results))
 ## Result from creating a span ad attirbutes
 
 <img src = "images/Honeycomb_span.png" >
+
 > Now I can see two spans and attributes on the right side(app.now & app.results_len)
 
 
@@ -210,6 +213,93 @@ def run(Logger):
 
 <img src = "images/cloudwatch.png" >
 <img src = "images/cloudwatch_log.png" >
+
 > After setting it successfully, I disabled it for spend concerns.
 
 ## Integrate Rollbar and capture and error
+
+First, create an account in Rollbar and create a project
+I made a project only for backend(Flask)
+
+Add the following in backend-flask/requirements.txt
+
+```
+blinker
+rollbar
+```
+
+Run the following commends to install everything in requirements.txt
+
+```sh
+pip install -r requirements.txt
+```
+
+Export and set the env vars
+```sh
+export ROLLBAR_ACCESS_TOKEN=""
+gp env ROLLBAR_ACCESS_TOKEN=""
+```
+> You can find it from Rollbar after creating a project
+
+Check if the environment variable is set correctly
+
+<img src = "images/Rollbar_env.png" >
+
+Add the following in Docker-compose file
+
+```yml
+ROLLBAR_ACCESS_TOKEN: "${ROLLBAR_ACCESS_TOKEN}"
+```
+
+Import the necessary libraries in backend-flask/app.py file
+
+```py
+import rollbar
+import rollbar.contrib.flask
+from flask import got_request_exception
+```
+
+Add the following code in app.py file
+
+```py
+rollbar_access_token = os.getenv('ROLLBAR_ACCESS_TOKEN')
+@app.before_first_request
+def init_rollbar():
+    """init rollbar module"""
+    rollbar.init(
+        # access token
+        rollbar_access_token,
+        # environment name
+        'production',
+        # server root directory, makes tracebacks prettier
+        root=os.path.dirname(os.path.realpath(__file__)),
+        # flask already sets up logging
+        allow_logging_basic_config=False)
+
+    # send exceptions from `app` to rollbar, using flask's signal system.
+    got_request_exception.connect(rollbar.contrib.flask.report_exception, app)
+```
+> Remember to put this under app = Flask(__name__)
+
+To add an end point for testing, add the following function in app.py file
+
+```py
+@app.route('/rollbar/test')
+def rollbar_test():
+    rollbar.report_message('Hello World!', 'warning')
+    return "Hello World!"
+```
+
+Run Docker Compose-up and go to http://localhost:4567/rollbar/test
+
+<img src = "images/Rollbar_hello.png" >
+
+> I can see "hello world" message comming from the function above.
+
+<img src = "images/Rollbar_log.png" >
+
+> I can also see the request from backend container log
+
+<img src = "images/Rollbar.png" >
+
+> I can also see the log in Rollbar dashboard. The hello world message is sent over and an error that I encountered while practicing is also shown there.
