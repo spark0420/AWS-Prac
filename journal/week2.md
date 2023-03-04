@@ -148,6 +148,179 @@ span.set_attribute("app.results_len", len(results))
 
 ## Instrument AWS X-Ray
 
+Before starting, make sure you are in the right region in AWS console to check x-ray data later
+
+Add the aws sdk file in requirements.txt file
+```
+aws-xray-sdk
+```
+
+Install the files in requirements.txt file by running
+```
+pip install -r requirements.txt
+```
+> Remember to run the commends in backend-flask folder
+
+
+Import the necessary libraries in backend-flask/app.py
+```py
+from aws_xray_sdk.core import xray_recorder
+from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
+```
+
+Add the following code in backend-flask/app.py
+```py
+xray_url = os.getenv("AWS_XRAY_URL")
+xray_recorder.configure(service='backend-flask', dynamic_naming=xray_url)
+XRayMiddleware(app, xray_recorder)
+```
+> Rememnber to put XRayMiddleware(app, xray_recorder) under app = Flask(__name__)
+
+> The reason why it is called 'middleware' is because it sits in front of your application. You can have multiple middlewares and use them to pass filtering, post-processing, or formatting of in comming requests before they make to the application. For instance, you can have a middleware for authentication, filtering certain addresses, or cross-site request forgery(CSFR).
+
+Setup AWS X-Ray resources
+Add aws/xray.json 
+```json
+{
+  "SamplingRule": {
+      "RuleName": "Cruddur",
+      "ResourceARN": "*",
+      "Priority": 9000,
+      "FixedRate": 0.1,
+      "ReservoirSize": 5,
+      "ServiceName": "backend-flask",
+      "ServiceType": "*",
+      "Host": "*",
+      "HTTPMethod": "*",
+      "URLPath": "*",
+      "Version": 1
+  }
+}
+```
+> This is for setting up sampling rules
+
+Run the following commends
+```sh
+aws xray create-group \
+   --group-name "Cruddur" \
+   --filter-expression "service(\"backend-flask\")"
+```
+
+If everything is correct, you will be able to see the folloiwng json in the terminal
+
+<img src = "images/xray_json.png" >
+
+You will be also available to see the newly made group in x-ray traces in AWS console
+
+<img src = "images/xray_group.png" >
+
+Run the following commends to create a sampling rule
+```sh
+aws xray create-sampling-rule --cli-input-json file://aws/json/xray.json
+```
+> Sampling determines how much information you want to see.
+> You can also set it in AWS console 
+
+If the sampling rule is successfully created, you will be able to see the json formatted text in the terminal
+
+<img src = "images/xray_sampling.png" >
+
+You will also be able to see the sampling rule in AWS console 
+
+<img src = "images/xray_sampling2.png" >
+
+Then, add the Deamon Service to Docker-compose.yml file
+```yml
+  xray-daemon:
+    image: "amazon/aws-xray-daemon"
+    environment:
+      AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
+      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
+      AWS_REGION: "us-west-2"
+    command:
+      - "xray -o -b xray-daemon:2000"
+    ports:
+      - 2000:2000/udp
+```
+> Remember to set the correct AWS_REGION that you are using
+
+Add the necessary environment variables in Docker-compose.yml file
+```yml
+    AWS_XRAY_URL: "*4567-${GITPOD_WORKSPACE_ID}.${GITPOD_WORKSPACE_CLUSTER_HOST}*"
+      AWS_XRAY_DAEMON_ADDRESS: "xray-daemon:2000"
+```
+
+Run Docker compose-up!
+If everything is successful, we can see the following x-ray log in the terminal
+
+<img src = "images/xray_data_terminal.png" >
+> See the message "Successfully sent batch of 1 segments"
+
+We can also see the data forwarded in AWS console(in the Tab X-ray traces/Traces)
+<img src = "images/xray_data_console.png" >
+
+Now! Create a custom segment and subsegment
+
+Import the necessary library in backend-flask/services/user_activities.py
+```py
+from aws_xray_sdk.core import xray_recorder
+```
+
+Declare a subsegment in the def run(user_handle): function
+```py
+segment = xray_recorder.begin_segment('user_activities')
+subsegment = xray_recorder.begin_subsegment('mock-data')
+```
+> Reference the actual file in my repo for syntax locations
+
+Create a dictionary for returning data and put them in the metadata
+```py
+  dict = {
+    "now": now.isoformat(),
+    "result_size": len(model['data'])
+  }
+  subsegment.put_metadata('key', dict, 'namespace')
+```
+
+After running Docker compose-up, 
+<img src = "images/xray_error.png" >
+
+> When I opened the main page of the application, I could see the logs in backend-flask logs and a message saying a batch is successfully sent in x-ray log. 
+> However, When I opend the user page(append @Scarlett in the URL), I could not see a message in x-ray logs saying a batch is successfully sent.
+
+Solutions!
+
+Put the following annotations in backend-flask/app.py 
+```py
+@xray_recorder.capture('activities_home')
+@xray_recorder.capture('activities_users')
+```
+> Reference the file for the locations of those annotations
+
+Then, add the following to close the subsegment in backend-flask/services/user_activities.py
+```py
+finally:  
+  xray_recorder.end_subsegment()
+```
+
+Remove the segment and put try: syntax because we are using try-finally method here
+```py
+# segment = xray_recorder.begin_segment('user_activities')
+try:
+  model = {
+    'errors': None,
+    'data': None
+  }
+```
+
+After refreshing this page(http://localhost:3000/@Scarlett%20Park) serveral times, I could finally see the subsegment!
+<img src = "images/xray_success.png" >
+
+
+> reference: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/index.html
+> reference: https://github.com/aws/aws-xray-sdk-python
+
+
 ## Configure custom logger to send to CloudWatch Logs
 
 Add to the requirements.txt
