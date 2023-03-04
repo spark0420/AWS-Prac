@@ -314,10 +314,12 @@ try:
 ```
 
 After refreshing this page(http://localhost:3000/@Scarlett%20Park) serveral times, I could finally see the subsegment!
+
 <img src = "images/xray_success.png" >
 
 
 > reference: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/index.html
+
 > reference: https://github.com/aws/aws-xray-sdk-python
 
 
