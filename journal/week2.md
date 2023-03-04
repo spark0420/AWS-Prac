@@ -259,7 +259,7 @@ If everything is successful, we can see the following x-ray log in the terminal
 We can also see the data forwarded in AWS console(in the Tab X-ray traces/Traces)
 <img src = "images/xray_data_console.png" >
 
-Now! Create a custom segment and subsegment
+### Now! Create a custom segment and subsegment
 
 Import the necessary library in backend-flask/services/user_activities.py
 ```py
@@ -288,7 +288,7 @@ After running Docker compose-up,
 > When I opened the main page of the application, I could see the logs in backend-flask logs and a message saying a batch is successfully sent in x-ray log. 
 > However, When I opend the user page(append @Scarlett in the URL), I could not see a message in x-ray logs saying a batch is successfully sent.
 
-Solutions!
+### Solutions!
 
 Put the following annotations in backend-flask/app.py 
 ```py
