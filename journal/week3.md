@@ -148,14 +148,93 @@ const onsubmit = async (event) => {
 > Because I used an incorrect username and password, it shows an error message. 
 > Network console should show an error saying "Uncaught (in promise) NotAuthorizedException: Incorrect username or password" at this stage. Mine is not showing it since I already set authorization in the server-side and set a different error message.
 
-### Create a user using AWS Cognito console
+### Create a user For testing
 
+Create a user using AWS Cognito console
+When you create a user, its status set to FORCE_CHANGE_PASSWORD at the beginning.
+AWS console does not allow it to happen using AWS console.
+Therefore, use CLI 
 
-
-
+In terminal, run the following with correct values
+```sh
+aws cognito-idp admin-set-user-password \
+  --user-pool-id <your-user-pool-id> \
+  --username <username> \
+  --password <password> \
+  --permanent
+```
 
 ## Implement Custom Signup Page
+
+### Import the Amplify library in SignupPage.js 
+```js
+import { Auth } from 'aws-amplify';
+```
+
+### Replace onsubmit function that were using cookies
+```js
+const onsubmit = async (event) => {
+    setErrors('')
+    event.preventDefault();
+
+    Auth.signIn(email, password)
+      .then(user => {
+        console.log('user', user)
+        localStorage.setItem("access_token", user.signInUserSession.accessToken.jwtToken)
+        window.location.href = "/"
+      })
+      .catch(error => {
+        if (error.code == 'UserNotConfirmedException') {
+          window.location.href = "/confirm"
+        }
+        setErrors(error.message)
+      });
+    return false
+  }
+```
+
 ## Implement Custom Confirmation Page
+
+### Import the Amplify library in ConfirmationPage.js 
+```js
+import { Auth } from 'aws-amplify';
+```
+
+### Replace resend and onsubmit function that were using cookies
+```js
+const resend_code = async (event) => {
+    setErrors('')
+    try {
+      await Auth.resendSignUp(email);
+      console.log('code resent successfully');
+      setCodeSent(true)
+    } catch (err) {
+      // does not return a code
+      // does cognito always return english
+      // for this to be an okay match?
+      console.log(err)
+      if (err.message == 'Username cannot be empty'){
+        setErrors("You need to provide an email in order to send Resend Activiation Code")   
+      } else if (err.message == "Username/client id combination not found."){
+        setErrors("Email is invalid or cannot be found.")   
+      }
+    }
+  }
+
+  const onsubmit = async (event) => {
+    event.preventDefault();
+    setErrors('')
+    try {
+      await Auth.confirmSignUp(email, code);
+      window.location.href = "/"
+    } catch (error) {
+      setErrors(error.message)
+    }
+    return false
+  }
+```
+
+
 ## Implement Custom Recovery Page
 ## Watch about different approaches to verifying JWTs
 
