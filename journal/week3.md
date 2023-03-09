@@ -303,7 +303,8 @@ Put the code below in HomeFeedPage.js
 > It will allow us to pass the access_token('Authorization') to the backend
 
 ### Put the header and authorization in CORS in backend-flaks/app.py
-...py
+
+```py
 cors = CORS(
   app, 
   resources={r"/api/*": {"origins": origins}},
@@ -548,6 +549,7 @@ if cognito_user_id != None:
 ## Error I encountered
 
 <img src = "images/ActivityFeed_error.png" >
+
 > After appending one more content, I could check there is an error in the screenshot
 
 > After some research, I found out it is because the key(uuid) for the appended content is not unique. It was because I just copied and pasted the hard-coded uuid that is above in the function. After changing one number at the end, I could solve the problem
