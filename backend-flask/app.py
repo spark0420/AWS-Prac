@@ -78,8 +78,6 @@ cognito_token = CognitoToken(
   user_pool_id = os.getenv("AWS_COGNITO_USER_POOL_ID"),
   user_pool_client_id = os.getenv("AWS_COGNITO_USER_POOL_CLIENT_ID"),
   region = os.getenv("AWS_DEFAULT_REGION")
-
-
 )
 #-----------------X-RAY--------------------
 XRayMiddleware(app, xray_recorder)
