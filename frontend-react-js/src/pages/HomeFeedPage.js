@@ -19,8 +19,8 @@ export default function HomeFeedPage() {
   const [replyActivity, setReplyActivity] = React.useState({});
   const [user, setUser] = React.useState(null);
   const dataFetchedRef = React.useRef(false);
-  
 
+  
   const loadData = async () => {
     try {
       const backend_url = `${process.env.REACT_APP_BACKEND_URL}/api/activities/home`
@@ -58,8 +58,8 @@ export default function HomeFeedPage() {
         })
     })
     .catch((err) => console.log(err));
-  };  
-
+  };
+  
   React.useEffect(()=>{
     //prevents double call
     if (dataFetchedRef.current) return;

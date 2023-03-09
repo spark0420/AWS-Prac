@@ -52,7 +52,7 @@ class HomeActivities:
       ]
       if cognito_user_id != None:
         extra_crud = {
-        'uuid': '248959df-3079-4947-b847-9e0892d1bab4',
+        'uuid': '248959df-3079-4947-b847-9e0892d1bab1',
         'handle':  'Goyang',
         'message': 'My dear cat',
         'created_at': (now - timedelta(hours=1)).isoformat(),
