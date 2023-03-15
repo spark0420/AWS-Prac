@@ -60,8 +60,8 @@ provider.add_span_processor(processor)
 
 #-----------------X-RAY--------------------
 # Disabled X-ray because of spent concern
-xray_url = os.getenv("AWS_XRAY_URL")
-xray_recorder.configure(service='backend-flask', dynamic_naming=xray_url)
+# xray_url = os.getenv("AWS_XRAY_URL")
+# xray_recorder.configure(service='backend-flask', dynamic_naming=xray_url)
 
 
 # To debug, it shows in logs of backend-flask(STDOUT)
@@ -80,7 +80,7 @@ cognito_token = CognitoToken(
   region = os.getenv("AWS_DEFAULT_REGION")
 )
 #-----------------X-RAY--------------------
-XRayMiddleware(app, xray_recorder)
+# XRayMiddleware(app, xray_recorder)
 
 #-----------------HoneyComb--------------------
 # Initialize automatic instrumentation with Flask
@@ -166,7 +166,7 @@ def data_create_message():
   return
 
 @app.route("/api/activities/home", methods=['GET'])
-@xray_recorder.capture('activities_home')
+# @xray_recorder.capture('activities_home')
 @cross_origin()
 def data_home():
   access_token = extract_access_token(request.headers)
@@ -195,7 +195,7 @@ def data_notifications():
 
 
 @app.route("/api/activities/@<string:handle>", methods=['GET'])
-@xray_recorder.capture('activities_users')
+# @xray_recorder.capture('activities_users')
 @cross_origin()
 def data_handle(handle):
   model = UserActivities.run(handle)
