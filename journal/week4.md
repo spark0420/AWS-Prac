@@ -347,8 +347,140 @@ Run the following to install the two libraries
 pip install -r requirements.txt
 ```
 
+Create a file named 'db.py' under /backend-flask/lib
+```py
+from psycopg_pool import ConnectionPool
+import os
+
+def query_wrap_object(template):
+  sql = f"""
+  (SELECT COALESCE(row_to_json(object_row),'{{}}'::json) FROM (
+  {template}
+  ) object_row);
+  """
+  return sql
+
+def query_wrap_array(template):
+  sql = f"""
+  (SELECT COALESCE(array_to_json(array_agg(row_to_json(array_row))),'[]'::json) FROM (
+  {template}
+  ) array_row);
+  """
+  return sql
+
+connection_url = os.getenv("CONNECTION_URL")
+pool = ConnectionPool(connection_url)
+```
+
+Update docker-compose.yml file
+```yml
+CONNECTION_URL: "${PROD_CONNECTION_URL}"
+```
+
+Import db.py file in home_activities.py
+```py
+from lib.db import pool, query_wrap_array
+```
+
+Replace the hard-coded results with the following
+```py
+sql = query_wrap_array("""
+      SELECT
+        activities.uuid,
+        users.display_name,
+        users.handle,
+        activities.message,
+        activities.replies_count,
+        activities.reposts_count,
+        activities.likes_count,
+        activities.reply_to_activity_uuid,
+        activities.expires_at,
+        activities.created_at
+      FROM public.activities
+      LEFT JOIN public.users ON users.uuid = activities.user_uuid
+      ORDER BY activities.created_at DESC
+    """)
+    with pool.connection() as conn:
+      with conn.cursor() as cur:
+        cur.execute(sql)
+        # this will return a tuple
+        # the first field being the data
+        json = cur.fetchone()
+
+    return json[0]
+```
 
 ## Connect Gitpod to RDS Instance
+
+1. Go to AWS RDS and go into the database called "cruddur-db-instance"
+2. Go to "VPC Security group" and go to "Inbound rule"
+3. Click "Edit Inbound rule" and add your GitPod IP
+
+Before adding GitPod IP,
+
+Run the following in the terminal
+```sh
+GITPOD_IP=$(curl ifconfig.me)
+```
+> This will capture the GITPOD IP address
+> Then, we can run psql $PROD_CONNECTION_URL
+
+However, this IP address changes whenever we launch a new work space
+Therefore, we are going to set the security group ID to change the IP address automatically
+
+Run the following in the terminal
+```sh
+export DB_SG_ID="sg-0b725ebab7e25635e"
+gp env DB_SG_ID="sg-0b725ebab7e25635e"
+export DB_SG_RULE_ID="sgr-070061bba156cfa88"
+gp env DB_SG_RULE_ID="sgr-070061bba156cfa88"
+```
+> Make sure to set the right security group ID and security group Rule ID
+
+Run the following in the terminal
+```sh
+aws ec2 modify-security-group-rules \
+    --group-id $DB_SG_ID \
+    --security-group-rules "SecurityGroupRuleId=$DB_SG_RULE_ID,SecurityGroupRule={Description=GITPOD,IpProtocol=tcp,FromPort=5432,ToPort=5432,CidrIpv4=$GITPOD_IP/32}"
+```
+> If it works correctly, the terminal will return "true"
+
+Now create a file named "rds-update-sg-rule" under /backend-flask/bin
+```sh
+#! /usr/bin/bash
+
+CYAN='\033[1;36m'
+NO_COLOR='\033[0m'
+LABEL="rds-update-sg-rule"
+printf "${CYAN}== ${LABEL}${NO_COLOR}\n"
+
+aws ec2 modify-security-group-rules \
+    --group-id $DB_SG_ID \
+    --security-group-rules "SecurityGroupRuleId=$DB_SG_RULE_ID,SecurityGroupRule={Description=GITPOD,IpProtocol=tcp,FromPort=5432,ToPort=5432,CidrIpv4=$GITPOD_IP/32}"
+```
+> Remember to change the permission
+> chmod u+x ./bin/rds-update-sg-rule
+
+Also update the gitpod.yml file so that it can run automatically whenever a new workspace is launched
+```yml
+    command: |
+      export GITPOD_IP=$(curl ifconfig.me)
+      source  "$THEIA_WORKSPACE_ROOT/backend-flask/bin/rds-update-sg-rule"
+```
+> It has to be located under 'postgres'
+
+Also update env var "CONNECTION_URL" in Docker-compose.yml
+```yml
+CONNECTION_URL: "${PROD_CONNECTION_URL}"
+```
+
+## Result from connect Gitpod to RDS Instance
+
+<img src = "images/securitygroup.png" >
+
+<img src = "images/prod.png" >
+
+
 ## Create Congito Trigger to insert user into database
 ## Create new activities with a database insert
 
