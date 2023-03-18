@@ -482,6 +482,140 @@ CONNECTION_URL: "${PROD_CONNECTION_URL}"
 
 
 ## Create Congito Trigger to insert user into database
+
+During the Sign process, we need to insert the user's cognito user id into the database
+It can happen using a AWS lambda funtion
+
+Go to AWS Lambda and create a function
+1. Select Author from scratch
+2. Name the function "cruddur-post-confirmation"
+3. Set the Runtime to Python 3.8 
+4. Select x86-64 for Architecture
+
+We also need to create a file to put the function code in our local environment
+Create a file named "cruddur-post-confirmation.py" under /aws/lambdas
+```py
+import json
+import psycopg2
+import os
+
+def lambda_handler(event, context):
+    user = event['request']['userAttributes']
+    print('userAttributes')
+    print(user)
+
+    user_display_name = user['name']
+    user_email        = user['email']
+    user_handle       = user['preferred_username']
+    user_cognito_id   = user['sub']
+
+    try:
+        sql = f"""
+            INSERT INTO public.users (
+                display_name,
+                email,
+                handle,
+                cognito_user_id
+            )
+            VALUES(
+                '{user_display_name}',
+                '{user_email}',
+                '{user_handle}',
+                '{user_cognito_id}'
+            )
+        """
+        print(sql)
+        conn = psycopg2.connect(os.getenv('CONNECTION_URL'))
+        cur = conn.cursor()
+        cur.execute(sql)
+        conn.commit() 
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+        
+    finally:
+        if conn is not None:
+            cur.close()
+            conn.close()
+            print('Database connection closed.')
+
+    return event
+```
+> Put the function code in the lambda function in AWS Console as well
+> Click "Deploy" in the console
+
+In the console, go to Configurations and Environment varaibles
+Add env var
+```sh
+key: CONNECTION_URL
+value: 
+```
+> value can be found by running env | grep PROD_CONNECTION_URL
+
+Go back to Code and Layers and add a Layer
+1. Select specify an ARN
+2. Put the following
+```sh
+arn:aws:lambda:ca-central-1:898466741470:layer:psycopg2-py38:1
+```
+> Make sure to put the right region
+
+Go to Cognito user pool and select the right user pool for user authorization
+1. Go to User pool properties
+2. Go to Lambda triggers
+3. Select Add Lambda trigger
+4. Select Sign-up
+5. Select Post confirmation trigger
+6. Choose the right lambda function
+
+Before adding a VPC, we need to setup a security group and policies
+1. Go to Lambda
+2. Go to Configurations
+3. Go to Permissions
+4. Click Role name
+5. Click Add permission and attach policies
+6. Click create policy
+7. Choose json and put the following
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:CreateNetworkInterface",
+                "ec2:DeleteNetworkInterface",
+                "ec2:DescribeInstances",
+                "ec2:AttachNetworkInterface"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+8. Name the policy "AWSLambdaVPCAccessExecutionRole"
+
+
+After attaching the new policy,
+1. Go to Configurations
+2. Go to VPC
+3. Click edit
+4. Select a VPC available
+5. Choose the subnets(I chose a abd b)
+6. Set the security group(I used the default one)
+7. Save
+
+
+Go to Cloudwatch logs to check the logts if the function works as expected
+1. Sign-up using a new username and password
+2. Check the Cloudwatch logs if there is any error
+3. Check if the user data is also in the databse
+
+## Result from creating Congito Trigger to insert user into database
+
+<img src = "images/lambda.png" >
+
 ## Create new activities with a database insert
 
 
