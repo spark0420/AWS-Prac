@@ -63,7 +63,6 @@ class Db:
     self.print_sql('array',sql)
     self.print_params(params)
     wrapped_sql = self.query_wrap_array(sql)
-    
 
     with self.pool.connection() as conn:
       with conn.cursor() as cur:

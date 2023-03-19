@@ -618,9 +618,279 @@ Go to Cloudwatch logs to check the logts if the function works as expected
 
 ## Create new activities with a database insert
 
-Update /backend-flask/create_activity.py
-```py
+Create sql files under backend-flask/db/sql/activities
 
+create.sql
+```sql
+INSERT INTO public.activities (
+  user_uuid,
+  message,
+  expires_at
+)
+VALUES (
+  (SELECT uuid 
+    FROM public.users 
+    WHERE users.handle = %(handle)s
+    LIMIT 1
+  ),
+  %(message)s,
+  %(expires_at)s
+) RETURNING uuid;
 ```
+> This is for inserting activities to the database
+
+object.sql
+```sql
+SELECT
+  activities.uuid,
+  users.display_name,
+  users.handle,
+  activities.message,
+  activities.created_at,
+  activities.expires_at
+FROM public.activities
+INNER JOIN public.users ON users.uuid = activities.user_uuid 
+WHERE 
+  activities.uuid = %(uuid)s
+```
+home.sql
+```
+SELECT
+  activities.uuid,
+  users.display_name,
+  users.handle,
+  activities.message,
+  activities.replies_count,
+  activities.reposts_count,
+  activities.likes_count,
+  activities.reply_to_activity_uuid,
+  activities.expires_at,
+  activities.created_at
+FROM public.activities
+LEFT JOIN public.users ON users.uuid = activities.user_uuid
+ORDER BY activities.created_at DESC
+```
+> This code is from home_activities.py I will remove the code and pass it as a function
+
+Update /backend-flask/lib/db.py
+
+Instead of putting individual functions, create a class and put the currently existing functions in
+```py
+from psycopg_pool import ConnectionPool
+import os  
+import re
+import sys
+from flask import current_app as app
+
+class Db:
+  def __init__(self):
+    self.init_pool()
+
+  def template(self, *args):
+    pathing = list((app.root_path,'db','sql',) + args)
+    pathing[-1] = pathing[-1] + ".sql"
+
+    template_path = os.path.join(*pathing)
+
+    green = '\033[92m'
+    no_color = '\033[0m'
+    print("\n")
+    print(f'{green} Load SQL Template: {template_path} {no_color}')
+
+    with open(template_path, 'r') as f:
+      template_content = f.read()
+    return template_content
+
+  def init_pool(self):
+    connection_url = os.getenv("CONNECTION_URL")
+    self.pool = ConnectionPool(connection_url)
+
+  def print_sql_err(self,err):
+    # get details about the exception
+    err_type, err_obj, traceback = sys.exc_info()
+
+    # get the line number when exception occured
+    line_num = traceback.tb_lineno
+
+    # print the connect() error
+    print ("\npsycopg ERROR:", err, "on line number:", line_num)
+    print ("psycopg traceback:", traceback, "-- type:", err_type)
+
+    # print the pgcode and pgerror exceptions
+    print ("pgerror:", err.pgerror)
+    print ("pgcode:", err.pgcode, "\n")
+
+  def query_wrap_object(self, template):
+    sql = f"""
+    (SELECT COALESCE(row_to_json(object_row),'{{}}'::json) FROM (
+    {template}
+    ) object_row);
+    """
+    return sql
+
+  def query_wrap_array(self, template):
+    sql = f"""
+    (SELECT COALESCE(array_to_json(array_agg(row_to_json(array_row))),'[]'::json) FROM (
+    {template}
+    ) array_row);
+    """
+    return sql
+    
+
+db = Db()
+```
+> def print_sql_err(self,err): This will capture the erros
+> def template(self, *args): This is the function to perform sql and for reason why we created sql files above. We will take the file path as *args and the function will return the corresponding sql syntax
+
+Create functions in db.py
+```py
+def print_sql(self,title,sql):
+    cyan = '\033[96m'
+    no_color = '\033[0m'
+    print(f'{cyan} SQL STATEMENT-[{title}]------{no_color}')
+    print(sql)
+
+  def print_params(self, params):
+    blue = '\033[94m'
+    no_color = '\033[0m'
+    print(f'{blue} SQL PARAMS------{no_color}')
+    for key, value in params.items():
+      print(key, ":", value)
+
+  def query_commit(self, sql, params = {}):
+    self.print_sql('commit with returning',sql)
+
+    pattern = r"\bRETURNING\b"
+    is_returning_id = re.search(pattern, sql)
+
+    try:
+      with self.pool.connection() as conn:
+        cur = conn.cursor()
+        cur.execute(sql, params)
+        if is_returning_id:
+          returning_id = cur.fetchone()[0]
+        conn.commit()
+        if is_returning_id:
+          return returning_id
+    except Exception as err:
+      self.print_sql_err(err)
+  
+  def query_array_json(self, sql, params = {}):
+    self.print_sql('array',sql)
+    self.print_params(params)
+    wrapped_sql = self.query_wrap_array(sql)
+
+    with self.pool.connection() as conn:
+      with conn.cursor() as cur:
+        cur.execute(wrapped_sql,params)
+        # this will return a tuple
+        # the first field being the data
+        json = cur.fetchone()
+        return json[0]
+
+ 
+  def query_object_json(self,sql,params={}):
+    self.print_sql('json',sql)
+    self.print_params(params)
+    wrapped_sql = self.query_wrap_object(sql)
+
+    with self.pool.connection() as conn:
+      with conn.cursor() as cur:
+        cur.execute(wrapped_sql,params)
+        json = cur.fetchone()
+        if json == None:
+          "{}"
+        else:
+          return json[0]
+```
+> print_sql and print_params functions are for debugging purpose
+> query_array_json: This function will return an array of json objects
+> query_object_json: This function will return an json formatted object
+> query_commit: This function will accept the activities object and inset it into db
+
+Update create_activity.py to receive new activities and save it to db
+```py
+    else:
+      expires_at = (now + ttl_offset)
+      uuid = CreateActivity.create_activity(user_handle, message, expires_at)
+
+      object_json = CreateActivity.query_object_activity(uuid)
+
+      model['data'] = object_json
+    return model
+    
+  def create_activity(handle, message, expires_at):
+    sql = db.template('activities', 'create')
+    uuid = db.query_commit(sql, {'handle': handle, 'message': message, 'expires_at': expires_at})
+
+    return uuid
+    
+  def query_object_activity(uuid):
+    sql = db.template('activities', 'object')
+    return db.query_object_json(sql, {'uuid': uuid})
+```
+> Above code is only the updated part. Full code is in the repo
+> create_activity: This function will accept the values and execute sql in create.sql file and save the activity in db. It will return corresponding uuid
+> query_object_activity: This function will accept the uuid and execute sql in object.sql file and return json formatted object to display the data
+
+Update home_activities.py to use template function that we created
+```py
+sql = db.template('activities', 'home')
+results = db.query_array_json(sql)
+```
+Update the lambda function to use %s instead
+```py
+try:
+        sql = f"""
+            INSERT INTO public.users (
+                display_name,
+                email,
+                handle,
+                cognito_user_id
+            )
+            VALUES(%s,%s,%s,%s)
+        """
+```
+
+## Error I encountered during this process
+
+I got an error "NotnullViolation"
+Because of this error, my newely inserted activities were not shown in the homepage
+
+I found the answer from Discord
+
+Update the ActivityForm component in pages/HomeFeedPage.js to pass the user_handle prop as follows:
+```js
+<ActivityForm
+  user_handle={user}
+  popped={popped}
+  setPopped={setPopped}
+  setActivities={setActivities}
+/>
+```
+
+In the components/ActivityForm.js component, update the fetch request body to include the user_handle:
+```js
+body: JSON.stringify({
+  user_handle: props.user_handle.handle,
+  message: message,
+  ttl: ttl
+}),
+```
+
+In app.py, under the /api/activities route, assign the user_handle variable as follows:
+```py
+user_handle = request.json["user_handle"]
+```
+> These changes will ensure that the user_handle prop is passed correctly and included in the fetch request, and that the server can retrieve it from the request payload.
+
+## Result from creating new activities with a database insert
+
+<img src = "images/activities1.png" >
+
+> I can see the inserted data in the database by running ./bin/db-connect prod
+
+<img src = "images/activities2.png" >
+> I can also see the activities in the homepage
 
 
