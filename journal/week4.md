@@ -618,4 +618,9 @@ Go to Cloudwatch logs to check the logts if the function works as expected
 
 ## Create new activities with a database insert
 
+Update /backend-flask/create_activity.py
+```py
+
+```
+
 
