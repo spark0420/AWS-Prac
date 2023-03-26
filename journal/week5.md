@@ -333,7 +333,7 @@ dynamodb = boto3.client('dynamodb',**attrs)
 table_name = 'cruddur-messages'
 
 message_group_uuid = "5ae290ed-55d1-47a0-bc6d-fe2bc2700399"
-current_year = str(datetime.now().year)
+current_year = str(datetime.datetime.now().year)
 # define the query parameters
 query_params = {
   'TableName': table_name,
@@ -407,14 +407,14 @@ def get_my_user_uuid():
       users.handle =%(handle)s
   """
   uuid = db.query_value(sql,{
-    'handle':  'andrewbrown'
+    'handle':  'Scarlett'
   })
   return uuid
 
 my_user_uuid = get_my_user_uuid()
 print(f"my-uuid: {my_user_uuid}")
 
-current_year = str(datetime.now().year)
+current_year = str(datetime.datetime.now().year)
 # define the query parameters
 query_params = {
   'TableName': table_name,
@@ -440,6 +440,12 @@ def print_sql(self,title,sql,params={}):
 ```
 > Make sure to match the parameters where this function is called
 
+Also edit the following part in backend-flask/bin/db/setup file
+```sh
+set -e # stop if it fails at any point
+```
+
+
 ## Result from implementing DynamoDB Scripts
 Make sure to do 'chmod u+x ./bin/ddb/filename' before running the scripts
 
@@ -456,8 +462,86 @@ Make sure to do 'chmod u+x ./bin/ddb/filename' before running the scripts
 
 <img src = "images/scan.png" >
 
+<img src = "images/get-conversation.png" >
+
 > Reference: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/dynamodb.html
 
 
 ## Implement Update Cognito ID Script for Postgres Database
 
+Update gitpod.yml file so that the work environment can install requirements automatically
+```yaml
+  - name: flask
+    command: |
+      cd backend-flask
+      pip install -r requirements.txt
+```
+
+Update backend-flask/bin/db/drop
+```sh
+psql $NO_DB_CONNECTION_URL -c "DROP DATABASE IF EXISTS cruddur;"
+```
+
+Update Docker-compose.yml file 
+```yaml
+AWS_ENDPOINT_URL: "http://dynamodb-local:8000"
+```
+
+Create ddb.py file for DynamoDB under backend-flask/lib
+```py
+import boto3
+import sys
+from datetime import datetime, timedelta, timezone
+import uuid
+import os
+import botocore.exceptions
+
+class Ddb:
+    def client():
+        endpoint_url = os.getenv("AWS_ENDPOINT_URL")
+        if endpoint_url:
+            attrs = { 'endpoint_url': endpoint_url }
+        else:
+            attrs = {}
+        dynamodb = boto3.client('dynamodb',**attrs)
+        return dynamodb
+
+
+    def list_message_groups(client,my_user_uuid):
+        table_name = 'cruddur-messages'
+        current_year = str(datetime.now().year)
+        query_params = {
+            'TableName': table_name,
+            'KeyConditionExpression': 'pk = :pk AND begins_with(sk,:year)',
+            'ScanIndexForward': False,
+            'Limit': 20,
+            'ExpressionAttributeValues': {
+                ':pk': {'S': f"GRP#{my_user_uuid}"},
+                 ':year': {'S': current_year},
+            }
+        }
+        print('query-params: ', query_params)
+        print('client: ', client)
+
+        # query the table
+        response = client.query(**query_params)
+        items = response['Items']
+
+        print("items:: ", items)
+        results = []
+        for item in items:
+            last_sent_at = item['sk']['S']
+            results.append({
+                'uuid': item['message_group_uuid']['S'],
+                'display_name': item['user_display_name']['S'],
+                'handle': item['user_handle']['S'],
+                'message': item['message']['S'],
+                'created_at': last_sent_at
+            })
+        return results
+```
+
+Update app.py file to call the function 'list_message_groups'
+```py
+
+```
