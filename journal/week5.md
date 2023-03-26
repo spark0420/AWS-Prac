@@ -1401,3 +1401,121 @@ def create_message_group(client, message,my_user_uuid, my_user_display_name, my_
             print('== create_message_group.error')
             print(e)
 ```
+
+## Implement (Pattern E) Updating a Message Group using DynamoDB Streams
+
+To do this, we need to get our data on to DynamoDB and 
+
+### First, create a VPC
+
+1. Go to VPC and Click Endpoints
+2. Create a VPC(settings: Service Category = AWS Services, Services = DynamoDB, VPC = detfault one, Route Tables = check, Policy = Full access)
+
+### Second, create a lambda function
+
+1. Create a lambda function(Runtion = Python 3.9, Execution role = Create a new role with basic lambda permissions, Advanced Settings = Enable VPC, Security Group = default one )
+```py
+import json
+import boto3
+from boto3.dynamodb.conditions import Key, Attr
+
+dynamodb = boto3.resource(
+ 'dynamodb',
+ region_name='us-west-2',
+ endpoint_url="http://dynamodb.us-west-2.amazonaws.com"
+)
+
+def lambda_handler(event, context):
+    print('event-data',event)
+
+    eventName = event['Records'][0]['eventName']
+    if (eventName == 'REMOVE'):
+        print("skip REMOVE event")
+        return
+    pk = event['Records'][0]['dynamodb']['Keys']['pk']['S']
+    sk = event['Records'][0]['dynamodb']['Keys']['sk']['S']
+    if pk.startswith('MSG#'):
+        group_uuid = pk.replace("MSG#","")
+        message = event['Records'][0]['dynamodb']['NewImage']['message']['S']
+        print("GRUP ===>",group_uuid,message)
+    
+        table_name = 'cruddur-messages'
+        index_name = 'message-group-sk-index'
+        table = dynamodb.Table(table_name)
+        data = table.query(
+            IndexName=index_name,
+            KeyConditionExpression=Key('message_group_uuid').eq(group_uuid)
+        )
+        print("RESP ===>",data['Items'])
+    
+        # recreate the message group rows with new SK value
+        for i in data['Items']:
+            delete_item = table.delete_item(Key={'pk': i['pk'], 'sk': i['sk']})
+            print("DELETE ===>",delete_item)
+      
+            response = table.put_item(
+                Item={
+                    'pk': i['pk'],
+                    'sk': sk,
+                    'message_group_uuid':i['message_group_uuid'],
+                    'message':message,
+                    'user_display_name': i['user_display_name'],
+                    'user_handle': i['user_handle'],
+                    'user_uuid': i['user_uuid']
+                }
+            )
+            print("CREATE ===>",response)
+```
+> Make sure to have the same code in your working environment
+> Create a file 'cruddur-messaging-stream.py' under backend-flask/aws/lambdas and copy the code above
+
+2. In the lambda function, Go to configuration/Permissions and click the Execution role
+3. Attach a policy 'AWSLambdaInvocation-DynamoDB' and Create one more new policy
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:PutItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:Query"
+            ],
+            "Resource": [
+                "arn:aws:dynamodb:us-west-2:?:table/cruddur-messages/index/message-group-sk-index",
+                "arn:aws:dynamodb:us-west-2:?:table/cruddur-messages"
+            ]
+        }
+    ]
+}
+```
+> The policy above enables the actions in "Action" and I replaced my personal info with '?'
+
+
+### Third, create DynamoDB
+
+1. Before doing Docker-composeup, comment out # AWS_ENDPOINT_URL: "http://dynamodb-local:8000" in Docker-compose.yml file
+2. Run backend-flask/bin/ddb/schema-load prod to create a table in DynamoDB
+
+<img src = "images/dynamodb.png" >
+
+3. Then click the db and go to Exports and Stream/Turn on DynamoDB stream
+4. Set it to New image
+5. In Exports and Stream, go to Trigger and create a trigger(lambda function = cruddur-messaging-stream, Batch Size = 1)
+6. Open the app in a browser and append 'messages/new/anotherusername' at the end of the address
+7. Send a message
+
+<img src = "images/chat.png" >
+
+> If everything is ok, you will be able to see the message sent
+
+8. Go to Lambda function to see if it is triggered and inserted the data correctly
+
+<img src = "images/logEvents_ddb.png" >
+<img src = "images/ddbcheck.png" >
+
+> I can see there is no error and successfully catch the message and inserted to db
+
+
